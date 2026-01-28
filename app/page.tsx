@@ -3,12 +3,12 @@
 import { useState, useRef } from 'react';
 import BlogTitle from './components/BlogTitle';
 import MetaFields from './components/MetaFields';
-import TableOfContents from './components/TableOfContents';
+import TableOfContents, { generateTableOfContentsHTML } from './components/TableOfContents';
 import BodyDocxUploader from './components/BodyDocxUploader';
 import ImageUploader from './components/ImageUploader';
 import RelatedBlogsEditor, { RelatedBlogsEditorHandle } from './components/RelatedBlogsEditor';
 
-const BLOG_ID = 'gid://shopify/Blog/93379330367';
+const BLOG_ID = 'gid://shopify/Blog/93600678183';
 
 export default function BlogComposer() {
   const [title, setTitle] = useState('');
@@ -31,73 +31,6 @@ export default function BlogComposer() {
       .replace(/-+/g, '-');
   };
 
-  const generateDesktopTOC = (): string => {
-    const lines = toc.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-    
-    if (lines.length === 0) return '';
-
-    const slugify = (text: string): string => {
-      return text.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
-    };
-
-    // Parse items and extract heading level from markers like (H2), (H3)
-    const items: Array<{ text: string; level: number }> = [];
-
-    lines.forEach((line) => {
-      const match = line.match(/\(H([1-6])\)\s*$/);
-      const level = match ? parseInt(match[1]) : 2;
-      const cleanedText = line.replace(/\s*\(H[1-6]\)\s*$/gi, '').trim();
-      items.push({ text: cleanedText, level });
-    });
-
-    // Build list items HTML based on heading levels
-    let listHTML = '';
-    let inSubList = false;
-
-    items.forEach((item, idx) => {
-      const href = slugify(item.text);
-      const linkHTML = `<a href="#${href}">${item.text}</a>`;
-      const nextItem = items[idx + 1];
-
-      if (item.level === 2) {
-        if (inSubList) {
-          listHTML += '\n</ul>';
-          inSubList = false;
-        }
-        listHTML += `\n<li>${linkHTML}</li>`;
-
-        if (nextItem && nextItem.level === 3) {
-          listHTML += '\n<ul class="table-content-sub-list">\n';
-          inSubList = true;
-        }
-      } else if (item.level === 3) {
-        if (!inSubList) {
-          listHTML += '\n<ul class="table-content-sub-list">\n';
-          inSubList = true;
-        }
-        listHTML += `\n<li>${linkHTML}</li>`;
-
-        if (!nextItem || nextItem.level !== 3) {
-          listHTML += '\n</ul>';
-          inSubList = false;
-        }
-      }
-    });
-
-    if (inSubList) {
-      listHTML += '\n</ul>';
-    }
-
-    return `<div class="table-of-contents desktop-show">
-  <div class="table-of-contents-list-wrapper">
-    <h2><strong>Table of Contents</strong></h2>
-<ul class="table-content-list">
-${listHTML}
-</ul>
-  </div>
-</div>`;
-  };
-
   const handleSubmit = async () => {
     setError(null);
     setSuccess(null);
@@ -112,7 +45,7 @@ ${listHTML}
 
     try {
       const articleHandle = handle || generateHandle(title);
-      const desktopTOC = generateDesktopTOC();
+      const tableOfContentsHtml = generateTableOfContentsHTML(toc);
       const relatedBlogsHtml = relatedBlogsRef.current?.getRelatedBlogsHtml() || '';
 
       const payload = {
@@ -122,7 +55,7 @@ ${listHTML}
         handle: articleHandle,
         pageTitle: metaTitle,
         metaDescription: metaDesc,
-        tableOfContents: desktopTOC,
+        tableOfContents: tableOfContentsHtml,
         relatedBlogs: relatedBlogsHtml,
       };
 
@@ -160,7 +93,7 @@ ${listHTML}
       minHeight: '100vh'
     }}>
       <div style={{ marginBottom: 8 }}>
-        <h1>Smilepath Aus</h1>
+        <h1>Aligner32</h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '16px' }}>
           Create and manage your blog posts 
         </p>

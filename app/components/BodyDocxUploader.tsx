@@ -8,115 +8,18 @@ interface Heading {
   content: string;
 }
 
-// Function to generate mobile TOC HTML
-const generateMobileTOC = (toc: string): string => {
-  const lines = toc.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-  
-  if (lines.length === 0) return '';
-
-  const slugify = (text: string): string => {
-    return text.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
-  };
-
-  // Parse items and extract heading level from markers like (H2), (H3)
-  const items: Array<{ text: string; level: number }> = [];
-
-  lines.forEach((line) => {
-    const match = line.match(/\(H([1-6])\)\s*$/);
-    const level = match ? parseInt(match[1]) : 2; // default to H2 if no marker
-    const cleanedText = line.replace(/\s*\(H[1-6]\)\s*$/gi, '').trim();
-    items.push({ text: cleanedText, level });
-  });
-
-  // Build list items HTML based on heading levels
-  let listHTML = '';
-  let inSubList = false;
-
-  items.forEach((item, idx) => {
-    const href = slugify(item.text);
-    const linkHTML = `<a href="#${href}">${item.text}</a>`;
-    const nextItem = items[idx + 1];
-
-    if (item.level === 2) {
-      // Close sub-list if it was open
-      if (inSubList) {
-        listHTML += '\n</ul>';
-        inSubList = false;
-      }
-      listHTML += `\n<li>${linkHTML}</li>`;
-
-      // Check if next item is H3 - if so, open sub-list
-      if (nextItem && nextItem.level === 3) {
-        listHTML += '\n<ul class="table-content-sub-list">\n';
-        inSubList = true;
-      }
-    } else if (item.level === 3) {
-      // This is a sub-item
-      if (!inSubList) {
-        listHTML += '\n<ul class="table-content-sub-list">\n';
-        inSubList = true;
-      }
-      listHTML += `\n<li>${linkHTML}</li>`;
-
-      // Check if next item is NOT H3 - if so, close sub-list
-      if (!nextItem || nextItem.level !== 3) {
-        listHTML += '\n</ul>';
-        inSubList = false;
-      }
-    }
-  });
-
-  // Close any open sub-list at the end
-  if (inSubList) {
-    listHTML += '\n</ul>';
-  }
-
-  return `<div class="table-of-contents mobile-show">
-  <div class="table-of-contents-list-wrapper">
-    <h2><strong>Table of Contents</strong></h2>
-    <ul class="table-content-list">
-${listHTML}
-    </ul>
-  </div>
-</div>`;
-};
-
-// Function to inject mobile TOC at the top of body content
-const injectMobileTOC = (bodyHtml: string, toc: string): string => {
-  if (!toc.trim()) {
-    return bodyHtml;
-  }
-
-  const mobileTOC = generateMobileTOC(toc);
-  
-  // Wrap the entire content in the blog-article-content-desc-wrapper if not already wrapped
-  if (!bodyHtml.includes('blog-article-content-desc-wrapper')) {
-    return `${mobileTOC}\n${bodyHtml}`;
-  }
-
-  // If already wrapped, inject TOC after the opening wrapper div
-  return bodyHtml.replace(
-    '<div class="blog-article-content-desc-wrapper">',
-    `<div class="blog-article-content-desc-wrapper">\n${mobileTOC}`
-  );
-};
-
 // Function to detect and format References/Citations from heading + content
 const formatReferences = (doc: Document): void => {
   // Find all h2 headings with "References" or "Citations"
   const headings = doc.querySelectorAll('h2');
-  
+
   headings.forEach((heading) => {
     const headingText = heading.textContent?.toLowerCase().trim() || '';
-    const originalHeadingText = heading.textContent?.trim() || '';
-    
     if (headingText.includes('reference') || headingText.includes('citation')) {
       // Get all sibling elements until the next h2
       const referenceItems: string[] = [];
       let currentElement = heading.nextElementSibling;
-      
       while (currentElement && currentElement.tagName !== 'H2') {
-        // Collect all paragraphs and text content as references
         if (currentElement.tagName === 'P') {
           const refText = currentElement.textContent?.trim() || '';
           if (refText) {
@@ -125,56 +28,29 @@ const formatReferences = (doc: Document): void => {
         }
         currentElement = currentElement.nextElementSibling;
       }
-      
       // If we found reference items, create the References structure
       if (referenceItems.length > 0) {
         const refWrapper = doc.createElement('div');
-        refWrapper.setAttribute('class', 'article-faq-wrapper');
-        
-        const accordionDiv = doc.createElement('div');
-        accordionDiv.setAttribute('id', 'inner-accordion_block');
-        accordionDiv.setAttribute('class', 'inner-accordion');
-        
-        const itemDiv = doc.createElement('div');
-        itemDiv.setAttribute('class', 'inner-accordion-item');
-        itemDiv.setAttribute('itemscope', '');
-        itemDiv.setAttribute('itemprop', 'mainEntity');
-        itemDiv.setAttribute('itemtype', 'https://schema.org/Question');
-        
-        const titleDiv = doc.createElement('div');
-        titleDiv.setAttribute('class', 'inner-accordion-title');
-        titleDiv.setAttribute('itemprop', 'name');
-        
+        refWrapper.setAttribute('class', 'article-reference-section');
+        refWrapper.setAttribute('bis_skin_checked', '1');
+
         // Create h2 for the title
-        const titleH2 = doc.createElement('h2');
-        const textNode = doc.createTextNode(originalHeadingText + ':');
-        titleH2.appendChild(textNode);
-        titleDiv.appendChild(titleH2);
-        
-        const contentDiv = doc.createElement('div');
-        contentDiv.setAttribute('class', 'inner-accordion-content');
-        contentDiv.setAttribute('itemscope', '');
-        contentDiv.setAttribute('itemprop', 'acceptedAnswer');
-        contentDiv.setAttribute('itemtype', 'https://schema.org/Answer');
-        contentDiv.setAttribute('style', 'display: none;');
-        
+        const h2 = doc.createElement('h2');
+        h2.setAttribute('id', 'citations');
+        h2.textContent = 'Citations:';
+        refWrapper.appendChild(h2);
+
         // Add all reference items as paragraphs
         referenceItems.forEach((refText) => {
           const refP = doc.createElement('p');
-          refP.setAttribute('itemprop', 'text');
           refP.textContent = refText;
-          contentDiv.appendChild(refP);
+          refWrapper.appendChild(refP);
         });
-        
-        itemDiv.appendChild(titleDiv);
-        itemDiv.appendChild(contentDiv);
-        accordionDiv.appendChild(itemDiv);
-        refWrapper.appendChild(accordionDiv);
-        
+
         // Replace the heading with the references wrapper
         heading.parentNode?.insertBefore(refWrapper, heading);
         heading.remove();
-        
+
         // Remove all reference elements that come after the wrapper
         currentElement = refWrapper.nextElementSibling;
         let elementsToRemove: Element[] = [];
@@ -391,72 +267,128 @@ const processHeadingsWithIds = (html: string): string => {
     const isCTA = hasLink && hasH3;
     
     if (isCTA) {
-      // CTA table - don't wrap, just add CTA styling (can use thead and th)
-      const currentClass = table.getAttribute('class') || '';
-      const newClass = currentClass 
-        ? `${currentClass} blog_assessment_button` 
-        : 'blog_assessment_button';
-      table.setAttribute('class', newClass);
-
-      // Add primary-button class to all links inside this CTA table
-      const links = table.querySelectorAll('a');
-      links.forEach((link) => {
-        const linkClass = link.getAttribute('class') || '';
-        const newLinkClass = linkClass 
-          ? `${linkClass} primary-button` 
-          : 'primary-button';
-        link.setAttribute('class', newLinkClass);
-      });
+      // CTA table - extract content and rebuild as desired structure
+      const h3 = table.querySelector('h3');
+      const p = table.querySelector('p');
+      const link = table.querySelector('a');
+      
+      if (h3 && p && link) {
+        // Create new div wrapper
+        const ctaDiv = doc.createElement('div');
+        ctaDiv.setAttribute('class', 'blog_assessment_button');
+        ctaDiv.setAttribute('bis_skin_checked', '1');
+        
+        // Create h3 with classes
+        const newH3 = doc.createElement('h3');
+        newH3.setAttribute('class', 'text-2xl font-bold text-gray-900 mb-2');
+        newH3.textContent = h3.textContent || '';
+        
+        // Create p with classes
+        const newP = doc.createElement('p');
+        newP.setAttribute('class', 'text-gray-600 mb-4');
+        newP.textContent = p.textContent || '';
+        
+        // Create link with classes
+        const newLink = doc.createElement('a');
+        newLink.setAttribute('href', link.getAttribute('href') || '#');
+        newLink.setAttribute('class', 'primary-button');
+        newLink.setAttribute('target', '_blank');
+        newLink.textContent = link.textContent || 'Get Started';
+        
+        // Append all to the wrapper
+        ctaDiv.appendChild(newH3);
+        ctaDiv.appendChild(newP);
+        ctaDiv.appendChild(newLink);
+        
+        // Replace the table with the new structure
+        table.parentNode?.replaceChild(ctaDiv, table);
+      }
     } else {
-      // Non-CTA table - convert all thead rows to tbody, convert th to td, and wrap in responsive div
-      const theads = table.querySelectorAll('thead');
-      theads.forEach((thead) => {
-        const rows = thead.querySelectorAll('tr');
+      // Non-CTA table - only apply <thead>/<tbody> and data-row logic if table has multiple rows
+      const rows = table.querySelectorAll('tr');
+      if (rows.length > 1) {
+        // Create thead and tbody
+        const thead = doc.createElement('thead');
         const tbody = doc.createElement('tbody');
-        rows.forEach((row) => {
-          const clonedRow = row.cloneNode(true) as Element;
-          // Convert all th elements to td in this row
-          const thElements = clonedRow.querySelectorAll('th');
-          thElements.forEach((th) => {
+
+        // First row becomes thead
+        const firstRow = rows[0].cloneNode(true) as Element;
+        const firstRowCells = firstRow.querySelectorAll('td, th');
+        firstRowCells.forEach((cell) => {
+          const th = doc.createElement('th');
+          th.innerHTML = cell.innerHTML;
+          Array.from(cell.attributes).forEach(attr => {
+            th.setAttribute(attr.name, attr.value);
+          });
+          th.setAttribute('data-row', '1');
+          cell.parentNode?.replaceChild(th, cell);
+        });
+        thead.appendChild(firstRow);
+
+        // Remaining rows become tbody
+        for (let i = 1; i < rows.length; i++) {
+          const row = rows[i].cloneNode(true) as Element;
+          const rowCells = row.querySelectorAll('td, th');
+          rowCells.forEach((cell) => {
             const td = doc.createElement('td');
-            td.innerHTML = th.innerHTML;
-            // Copy attributes
-            Array.from(th.attributes).forEach(attr => {
+            td.innerHTML = cell.innerHTML;
+            Array.from(cell.attributes).forEach(attr => {
               td.setAttribute(attr.name, attr.value);
             });
-            th.parentNode?.replaceChild(td, th);
+            td.setAttribute('data-row', (i + 1).toString());
+            cell.parentNode?.replaceChild(td, cell);
           });
-          tbody.appendChild(clonedRow);
-        });
-        thead.parentNode?.replaceChild(tbody, thead);
-      });
+          tbody.appendChild(row);
+        }
 
-      // Convert all th elements to td in tbody rows
-      const tbodyRows = table.querySelectorAll('tbody tr');
-      tbodyRows.forEach((row) => {
-        const thElements = row.querySelectorAll('th');
-        thElements.forEach((th) => {
+        // Remove all original rows
+        rows.forEach((row) => row.remove());
+        table.appendChild(thead);
+        table.appendChild(tbody);
+      } else if (rows.length === 1) {
+        // Only one row: keep it in tbody
+        const tbody = doc.createElement('tbody');
+        const singleRow = rows[0].cloneNode(true) as Element;
+        const rowCells = singleRow.querySelectorAll('td, th');
+        rowCells.forEach((cell) => {
           const td = doc.createElement('td');
-          td.innerHTML = th.innerHTML;
-          // Copy attributes
-          Array.from(th.attributes).forEach(attr => {
+          td.innerHTML = cell.innerHTML;
+          Array.from(cell.attributes).forEach(attr => {
             td.setAttribute(attr.name, attr.value);
           });
-          th.parentNode?.replaceChild(td, th);
+          cell.parentNode?.replaceChild(td, cell);
         });
-      });
+        tbody.appendChild(singleRow);
+        rows[0].remove();
+        table.appendChild(tbody);
+      }
 
-      // Wrap in responsive div and add comparison table classes
+      // Wrap in responsive div and add sydney-main table_full_width classes
       const wrapper = doc.createElement('div');
       wrapper.setAttribute('class', 'table-responsive');
+      wrapper.setAttribute('bis_skin_checked', '1');
       table.parentNode?.insertBefore(wrapper, table);
       wrapper.appendChild(table);
 
-      const currentClass = table.getAttribute('class') || '';
-      const newClass = currentClass 
-        ? `${currentClass} comparison-table scan-comparison-table` 
-        : 'comparison-table scan-comparison-table';
-      table.setAttribute('class', newClass);
+      table.setAttribute('class', 'sydney-main table_full_width');
+                // Unwrap <p> tags inside <td> and <th>
+                const cells = table.querySelectorAll('td, th');
+                cells.forEach(cell => {
+                  const ps = Array.from(cell.children).filter(child => child.tagName === 'P');
+                  ps.forEach(p => {
+                    while (p.firstChild) {
+                      cell.insertBefore(p.firstChild, p);
+                    }
+                    p.remove();
+                  });
+                });
+          // Remove any empty <thead> elements
+          const emptyTheads = table.querySelectorAll('thead');
+          emptyTheads.forEach(thead => {
+            if (!thead.hasChildNodes() || !thead.querySelector('tr')) {
+              thead.remove();
+            }
+          });
     }
   });
 
@@ -467,8 +399,8 @@ const processHeadingsWithIds = (html: string): string => {
     if (hasListItems) {
       const currentClass = ul.getAttribute('class') || '';
       const newClass = currentClass 
-        ? `${currentClass} article-list-features` 
-        : 'article-list-features';
+        ? `${currentClass} blog-list-disc` 
+        : 'blog-list-disc';
       ul.setAttribute('class', newClass);
     }
   });
@@ -554,8 +486,6 @@ export default function BodyDocxUploader({
         let cleanHtml = String(data.html).trim();
         // Automatically format headings with IDs
         cleanHtml = processHeadingsWithIds(cleanHtml);
-        // Inject mobile TOC at the top of body content
-        cleanHtml = injectMobileTOC(cleanHtml, tableOfContents);
         setBodyHtml(cleanHtml);
       } else {
         throw new Error('No HTML content received');
