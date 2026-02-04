@@ -105,59 +105,101 @@ const formatFAQs = (doc: Document): void => {
       
       // If we found FAQ items, create the FAQ structure
       if (faqItems.length > 0) {
-        const faqWrapper = doc.createElement('div');
-        faqWrapper.setAttribute('class', 'article-faq-wrapper');
-        
+        // Collect all nodes between this heading and the next H2
+        const nodesBetween: Element[] = [];
+        let n = heading.nextElementSibling;
+        while (n && n.tagName !== 'H2') {
+          nodesBetween.push(n);
+          n = n.nextElementSibling as Element | null;
+        }
+
+        // Try to robustly extract Q/A pairs from the collected nodes
+        const extracted: { question: string; answer: string }[] = [];
+        const toRemove: Element[] = [];
+
+        for (let i = 0; i < nodesBetween.length; i++) {
+          const node = nodesBetween[i];
+          const text = node.textContent?.trim() || '';
+          // Case: both Q: and A: in same node
+          if (/Q:\s*/i.test(text) && /A:\s*/i.test(text)) {
+            const parts = text.split(/A:\s*/i);
+            const qPart = parts.shift() || '';
+            const aPart = parts.join('A:').trim();
+            const qText = qPart.replace(/Q:\s*/i, '').trim();
+            const aText = aPart.trim();
+            if (qText && aText) {
+              extracted.push({ question: qText, answer: aText });
+              toRemove.push(node);
+            }
+            continue;
+          }
+
+          // Case: Q: in this node, A: in the next node
+          if (/Q:\s*/i.test(text)) {
+            const qText = text.replace(/Q:\s*/i, '').trim();
+            let aText = '';
+            if (i + 1 < nodesBetween.length) {
+              const nextNode = nodesBetween[i + 1];
+              const nextText = nextNode.textContent?.trim() || '';
+              if (/A:\s*/i.test(nextText)) {
+                aText = nextText.replace(/A:\s*/i, '').trim();
+                toRemove.push(node, nextNode);
+                i++; // skip the answer node
+              } else if (/A:\s*/i.test(nextText)) {
+                aText = nextText.replace(/A:\s*/i, '').trim();
+                toRemove.push(node, nextNode);
+                i++;
+              }
+            }
+            if (qText && aText) extracted.push({ question: qText, answer: aText });
+          }
+        }
+
+        // If we didn't extract anything via the above, fall back to the original faqItems
+        const finalFaqs = extracted.length > 0 ? extracted : faqItems;
+
+        // Build the FAQPage structure and replace the original heading
         const faqPageDiv = doc.createElement('div');
         faqPageDiv.setAttribute('itemscope', '');
         faqPageDiv.setAttribute('itemtype', 'https://schema.org/FAQPage');
-        
-        const accordionDiv = doc.createElement('div');
-        accordionDiv.setAttribute('id', 'inner-accordion_block');
-        accordionDiv.setAttribute('class', 'inner-accordion');
-        
-        faqItems.forEach((item, index) => {
-          const itemDiv = doc.createElement('div');
-          itemDiv.setAttribute('class', 'inner-accordion-item');
-          itemDiv.setAttribute('itemscope', '');
-          itemDiv.setAttribute('itemprop', 'mainEntity');
-          itemDiv.setAttribute('itemtype', 'https://schema.org/Question');
-          
-          const titleDiv = doc.createElement('div');
-          titleDiv.setAttribute('class', 'inner-accordion-title');
-          titleDiv.setAttribute('itemprop', 'name');
-          
-          // Create text node for the question
-          const textNode = doc.createTextNode(item.question);
-          titleDiv.appendChild(textNode);
-          
-          const contentDiv = doc.createElement('div');
-          contentDiv.setAttribute('class', 'inner-accordion-content');
-          contentDiv.setAttribute('itemscope', '');
-          contentDiv.setAttribute('itemprop', 'acceptedAnswer');
-          contentDiv.setAttribute('itemtype', 'https://schema.org/Answer');
-          if (index > 0) {
-            contentDiv.setAttribute('style', 'display: none;');
-          }
-          
+
+        const newH2 = doc.createElement('h2');
+        newH2.setAttribute('id', 'faqs');
+        newH2.textContent = 'FAQs';
+        faqPageDiv.appendChild(newH2);
+
+        finalFaqs.forEach((item) => {
+          const questionDiv = doc.createElement('div');
+          questionDiv.setAttribute('itemscope', '');
+          questionDiv.setAttribute('itemprop', 'mainEntity');
+          questionDiv.setAttribute('itemtype', 'https://schema.org/Question');
+
+          const h3 = doc.createElement('h3');
+          h3.setAttribute('itemprop', 'name');
+          h3.textContent = `Q: ${item.question}`;
+          questionDiv.appendChild(h3);
+
+          const answerDiv = doc.createElement('div');
+          answerDiv.setAttribute('itemscope', '');
+          answerDiv.setAttribute('itemprop', 'acceptedAnswer');
+          answerDiv.setAttribute('itemtype', 'https://schema.org/Answer');
+
           const answerP = doc.createElement('p');
           answerP.setAttribute('itemprop', 'text');
-          answerP.textContent = item.answer;
-          
-          contentDiv.appendChild(answerP);
-          itemDiv.appendChild(titleDiv);
-          itemDiv.appendChild(contentDiv);
-          accordionDiv.appendChild(itemDiv);
+          answerP.textContent = `A: ${item.answer}`;
+          answerDiv.appendChild(answerP);
+
+          questionDiv.appendChild(answerDiv);
+          faqPageDiv.appendChild(questionDiv);
         });
-        
-        faqPageDiv.appendChild(accordionDiv);
-        faqWrapper.appendChild(faqPageDiv);
-        
-        // Insert the FAQ wrapper after the heading (keep the heading)
-        heading.parentNode?.insertBefore(faqWrapper, heading.nextElementSibling);
-        
-        // Remove all collected Q&A elements
-        elementsToRemove.forEach(el => el.remove());
+
+        // Replace the original heading with our structured FAQ block
+        heading.parentNode?.insertBefore(faqPageDiv, heading);
+        heading.remove();
+
+        // Remove all nodes we marked for removal (or the original collected elements)
+        const removals = toRemove.length > 0 ? toRemove : elementsToRemove;
+        removals.forEach(el => el.remove());
       }
     }
   });
