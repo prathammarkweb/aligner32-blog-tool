@@ -5,7 +5,7 @@ export const runtime = 'nodejs';
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE_DOMAIN;
 const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ADMIN_ACCESS_TOKEN;
 const SHOPIFY_API_VERSION = '2025-04';
-const SHOPIFY_PRIMARY_DOMAIN = process.env.SHOPIFY_PRIMARY_DOMAIN || 'smilepath.com.au';
+const SHOPIFY_PRIMARY_DOMAIN = process.env.SHOPIFY_PRIMARY_DOMAIN || 'aligner32.com';
 
 async function shopifyGraphQL(query: string, variables?: any) {
   const response = await fetch(
