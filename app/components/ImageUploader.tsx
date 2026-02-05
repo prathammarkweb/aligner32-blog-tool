@@ -2,7 +2,6 @@
 
 import Cropper from 'react-easy-crop';
 import { useState } from 'react';
-import { X } from 'lucide-react';
 
 export default function ImageUploader() {
   const [image, setImage] = useState<string | null>(null);
@@ -23,50 +22,56 @@ export default function ImageUploader() {
   };
 
   return (
-    <div className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium mb-2">Blog Image</label>
-        {!image && (
-          <input 
-            type="file" 
-            accept="image/*" 
-            onChange={onFileChange}
-            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-          />
-        )}
-      </div>
+    <div>
+      <label>Blog Image</label>
+      
+      {/* Only show file input if no image uploaded */}
+      {!image && (
+        <input type="file" accept="image/*" onChange={onFileChange} />
+      )}
 
       {image && (
-        <div className="relative border rounded-lg p-4">
+        <div style={{ position: 'relative', marginTop: '10px' }}>
           {/* Remove button */}
           <button
             onClick={removeImage}
-            className="absolute -top-2 -right-2 bg-red-500 text-white p-1.5 rounded-full hover:bg-red-600 z-10"
+            style={{
+              position: 'absolute',
+              top: '-10px',
+              right: '-10px',
+              background: 'red',
+              color: 'white',
+              border: 'none',
+              borderRadius: '50%',
+              width: '24px',
+              height: '24px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '14px',
+              zIndex: 10
+            }}
             title="Remove image"
           >
-            <X size={16} />
+            ×
           </button>
           
           {/* Image preview without cropper */}
-          <div className="flex flex-col items-center">
-            <div className="mb-4">
-              <img
-                src={image}
-                alt="Preview"
-                className="max-h-64 rounded-md object-contain"
-              />
-            </div>
-            
-            <div className="text-sm text-gray-500 mb-4">
-              Image uploaded successfully. You can replace it by selecting a new file.
-            </div>
-            
-            {/* Hidden file input to allow replacing the image */}
+          <div>
+            <img
+              src={image}
+              alt="Preview"
+              style={{ maxHeight: '200px', maxWidth: '100%' }}
+            />
+          </div>
+          
+          {/* Option to replace image */}
+          <div style={{ marginTop: '10px' }}>
             <input 
               type="file" 
               accept="image/*" 
               onChange={onFileChange}
-              className="block w-full max-w-xs text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
             />
           </div>
         </div>
