@@ -31,38 +31,44 @@ export default function ImageUploader() {
       )}
 
       {image && (
-        <div style={{ position: 'relative', marginTop: '10px' }}>
+        <div style={{ position: 'relative', marginTop: '10px', display: 'inline-block' }}>
           {/* Remove button */}
           <button
             onClick={removeImage}
             style={{
               position: 'absolute',
-              top: '-10px',
-              right: '-10px',
+              top: '5px',
+              right: '5px',
               background: 'red',
               color: 'white',
               border: 'none',
               borderRadius: '50%',
-              width: '24px',
-              height: '24px',
+              width: '28px',
+              height: '28px',
               cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '14px',
-              zIndex: 10
+              fontSize: '18px',
+              lineHeight: '28px',
+              textAlign: 'center',
+              zIndex: 10,
+              padding: 0
             }}
             title="Remove image"
           >
-            ×
+            X
           </button>
           
           {/* Image preview without cropper */}
-          <div>
+          <div style={{ border: '1px solid #ccc', padding: '5px', background: '#f5f5f5' }}>
             <img
               src={image}
               alt="Preview"
-              style={{ maxHeight: '200px', maxWidth: '100%' }}
+              style={{ 
+                display: 'block',
+                maxWidth: '300px', 
+                maxHeight: '200px',
+                width: 'auto',
+                height: 'auto'
+              }}
             />
           </div>
           
